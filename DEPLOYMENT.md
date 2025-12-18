@@ -21,9 +21,9 @@
 4. **Add Environment Variables**
    Click "Environment" tab and add:
    ```
-   DATABASE_URL=postgresql://neondb_owner:npg_bOlWTdNa7e9K@ep-misty-glitter-ab1puzd7-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require
-   JWT_SECRET=your-super-secret-random-key-change-this
-   PORT=3000
+   DATABASE_URL=
+   JWT_SECRET=
+   PORT=
    ```
 
 5. **Deploy**
