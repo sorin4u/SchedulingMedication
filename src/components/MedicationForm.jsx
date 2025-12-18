@@ -170,4 +170,4 @@ function MedicationForm({ medication, onClose, onSuccess }) {
 
 export default MedicationForm;
 
-//cd 'c:\Users\sorin\Desktop\React app\SchedulingMedication\SchedulingMedication'; git push -u origin main
+//cd 'c:\Users\sorin\Desktop\React app\SchedulingMedication\SchedulingMedication'; git init; git add .; git commit -m "Initial commit with medication scheduling app"; git branch -M main
