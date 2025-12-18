@@ -169,3 +169,5 @@ function MedicationForm({ medication, onClose, onSuccess }) {
 }
 
 export default MedicationForm;
+
+//cd 'c:\Users\sorin\Desktop\React app\SchedulingMedication\SchedulingMedication'; git push -u origin main
