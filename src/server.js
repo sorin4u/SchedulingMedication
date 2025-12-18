@@ -12,7 +12,7 @@ import jwt from 'jsonwebtoken';
 const { Pool } = pg;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 
 app.use(cors());
 app.use(express.json());
