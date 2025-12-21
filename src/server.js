@@ -1,5 +1,4 @@
 /* eslint-env node */
-import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import pg from 'pg';
@@ -12,7 +11,7 @@ import jwt from 'jsonwebtoken';
 const { Pool } = pg;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const app = express();
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
@@ -24,7 +23,7 @@ const distPath = path.join(__dirname, '..', 'dist');
 
 // Database pool configuration (more robust than single client)
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_bOlWTdNa7e9K@ep-misty-glitter-ab1puzd7-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require',
   ssl: { rejectUnauthorized: false },
   max: 5,
   idleTimeoutMillis: 30000,
