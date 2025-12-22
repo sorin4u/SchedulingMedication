@@ -273,17 +273,17 @@ app.get('/api/medications/:id', authenticateToken, async (req, res) => {
 // Create new medication
 app.post('/api/medications', authenticateToken, async (req, res) => {
   try {
-    const { name, dosage, frequency, time, notes, quantity, quantity_left } = req.body;
+    const { name,email, dosage, frequency, time, notes, quantity, quantity_left } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: 'Medication name is required' });
     }
 
     const result = await pool.query(
-      `INSERT INTO medications (user_id, name, quantity, quantity_left, dosage, frequency, start_datetime, notes) 
-       VALUES ($1, $2, $3, $4, $5, $6 , $7, $8) 
+      `INSERT INTO medications (user_id, name, email, quantity, quantity_left, dosage, frequency, start_datetime, notes) 
+       VALUES ($1, $2, $3, $4, $5, $6 , $7, $8, $9) 
        RETURNING *`,
-      [req.user.id, name, quantity, quantity_left, dosage, frequency, time, notes]
+      [req.user.id, name,email, quantity, quantity_left, dosage, frequency, time, notes]
     );
 
     res.status(201).json(result.rows[0]);
@@ -561,6 +561,7 @@ const initDatabase = async () => {
       CREATE TABLE IF NOT EXISTS medications (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        email VARCHAR(100),
         name VARCHAR(100) NOT NULL,
         dosage VARCHAR(50),
         frequency VARCHAR(50),

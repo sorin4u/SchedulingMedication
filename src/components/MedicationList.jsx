@@ -26,20 +26,34 @@ function MedicationList() {
   const fetchMedications = async () => {
     try {
       const token = localStorage.getItem('token');
+      
+      if (!token) {
+        setError('Please log in to view medications');
+        setLoading(false);
+        return;
+      }
+      
+      console.log('Fetching medications from:', `${API_URL}/api/medications`);
       const response = await fetch(`${API_URL}/api/medications`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
 
+      console.log('Response status:', response.status);
+
       if (!response.ok) {
-        throw new Error('Failed to fetch medications');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('API Error:', errorData);
+        throw new Error(errorData.error || `Server error: ${response.status}`);
       }
 
       const data = await response.json();
+      console.log('Medications loaded:', data.length);
       setMedications(data);
       setError('');
     } catch (err) {
+      console.error('Fetch medications error:', err);
       setError(err.message);
     } finally {
       setLoading(false);

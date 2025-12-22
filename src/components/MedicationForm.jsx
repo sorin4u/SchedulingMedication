@@ -117,6 +117,20 @@ function MedicationForm({ medication, onClose, onSuccess }) {
               placeholder="e.g., Aspirin"
             />
           </div>
+          <div className="form-group">
+            <label htmlFor="email">
+              Email <span className="required">*</span>
+            </label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+              placeholder="e.g., example@example.com"
+            />
+          </div>
 
           <div className="form-row">
             <div className="form-group">
