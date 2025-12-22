@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import API_URL from '../config';
 import './MedicationForm.css';
 
 function MedicationForm({ medication, onClose, onSuccess }) {
@@ -40,8 +41,8 @@ function MedicationForm({ medication, onClose, onSuccess }) {
     try {
       const token = localStorage.getItem('token');
       const url = medication
-        ? `http://localhost:3000/api/medications/${medication.id}`
-        : 'http://localhost:3000/api/medications';
+        ? `${API_URL}/api/medications/${medication.id}`
+        : `${API_URL}/api/medications`;
       
       const method = medication ? 'PUT' : 'POST';
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import API_URL from '../config';
 import MedicationForm from './MedicationForm';
 import NotificationPrompt from './NotificationPrompt';
 import { startMedicationReminders } from '../utils/notifications';
@@ -25,7 +26,7 @@ function MedicationList() {
   const fetchMedications = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3000/api/medications', {
+      const response = await fetch(`${API_URL}/api/medications`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -52,7 +53,7 @@ function MedicationList() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3000/api/medications/${id}`, {
+      const response = await fetch(`${API_URL}/api/medications/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -88,7 +89,7 @@ function MedicationList() {
   const handleMarkAsTaken = async (id, taken) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3000/api/medications/${id}/taken`, {
+      const response = await fetch(`${API_URL}/api/medications/${id}/taken`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

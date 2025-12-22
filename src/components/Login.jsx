@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import API_URL from '../config';
 import './Login.css';
 
 function Login({ onLogin }) {
@@ -30,7 +31,7 @@ function Login({ onLogin }) {
       : formData;
 
     try {
-      const response = await fetch(`http://localhost:3000${endpoint}`, {
+      const response = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
