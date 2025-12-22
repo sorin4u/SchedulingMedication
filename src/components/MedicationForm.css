@@ -117,6 +117,15 @@
   appearance: none;
 }
 
+/* Allow default appearance for datetime inputs */
+.form-group input[type="datetime-local"],
+.form-group input[type="date"],
+.form-group input[type="time"] {
+  -webkit-appearance: auto;
+  -moz-appearance: auto;
+  appearance: auto;
+}
+
 .form-group select {
   background: white;
   cursor: pointer;

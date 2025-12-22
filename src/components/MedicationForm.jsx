@@ -63,6 +63,8 @@ function MedicationForm({ medication, onClose, onSuccess }) {
         dosage: formData.dosage,
         frequency: formData.frequency,
         time: formData.time, // This will be stored as start_datetime in the database
+        quantity: formData.quantity,
+        quantity_left: formData.quantity_left,
         notes: formData.notes,
       };
 
@@ -137,6 +139,7 @@ function MedicationForm({ medication, onClose, onSuccess }) {
                 name="time"
                 value={formData.time}
                 onChange={handleChange}
+                style={{ width: '100%' }}
               />
             </div>
           </div>
