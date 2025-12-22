@@ -188,6 +188,18 @@ function MedicationList() {
                     <span className="value">{new Date(medication.start_datetime).toLocaleString()}</span>
                   </div>
                 )}
+                {medication.quantity && (
+                  <div className="detail-item">
+                    <span className="label">Quantity:</span>
+                    <span className="value">{medication.quantity}</span>
+                  </div>
+                )}
+                {medication.quantity_left && (
+                  <div className="detail-item">
+                    <span className="label">Quantity Left:</span>
+                    <span className="value">{medication.quantity_left}</span>
+                  </div>
+                )}
                 {medication.notes && (
                   <div className="detail-item notes">
                     <span className="label">Notes:</span>

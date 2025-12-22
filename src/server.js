@@ -270,17 +270,17 @@ app.get('/api/medications/:id', authenticateToken, async (req, res) => {
 // Create new medication
 app.post('/api/medications', authenticateToken, async (req, res) => {
   try {
-    const { name, dosage, frequency, time, notes } = req.body;
+    const { name, dosage, frequency, time, notes, quantity, quantity_left } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: 'Medication name is required' });
     }
 
     const result = await pool.query(
-      `INSERT INTO medications (user_id, name, dosage, frequency, start_datetime, notes) 
-       VALUES ($1, $2, $3, $4, $5, $6) 
+      `INSERT INTO medications (user_id, name, quantity, quantity_left, dosage, frequency, start_datetime, notes) 
+       VALUES ($1, $2, $3, $4, $5, $6 , $7, $8) 
        RETURNING *`,
-      [req.user.id, name, dosage, frequency, time, notes]
+      [req.user.id, name, quantity, quantity_left, dosage, frequency, time, notes]
     );
 
     res.status(201).json(result.rows[0]);
@@ -421,8 +421,8 @@ const initDatabase = async () => {
         dosage VARCHAR(50),
         frequency VARCHAR(50),
         start_datetime TIMESTAMP,
-        coantiti INTEGER,
-        coantiti_left INTEGER,
+        quantity INTEGER,
+        quantity_left INTEGER,
         notes TEXT,
         taken_today BOOLEAN DEFAULT FALSE,
         last_taken TIMESTAMP,
