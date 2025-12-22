@@ -1,15 +1,16 @@
 /* eslint-env node */
-import nodemailer from 'nodemailer';
+import pkg from 'nodemailer';
+const { createTransport } = pkg;
 
 // Create transporter for sending emails
 const createTransporter = () => {
-  return nodemailer.createTransporter({
-    host: import.meta.env.VITE_EMAIL_HOST || 'smtp.gmail.com',
-    port: parseInt(import.meta.env.VITE_EMAIL_PORT || '587'),
+  return createTransport({
+    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.EMAIL_PORT || '587'),
     secure: false, // true for 465, false for other ports
     auth: {
-      user: import.meta.env.VITE_EMAIL_USER,
-      pass: import.meta.env.VITE_EMAIL_PASSWORD,
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD,
     },
   });
 };
@@ -22,7 +23,7 @@ const createTransporter = () => {
 export const sendMedicationReminder = async (userEmail, medication) => {
   try {
     // Skip if email not configured
-    if (!import.meta.env.VITE_EMAIL_USER || !import.meta.env.VITE_EMAIL_PASSWORD) {
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
       console.warn('⚠️ Email not configured. Set EMAIL_USER and EMAIL_PASSWORD in .env file');
       return { success: false, message: 'Email not configured' };
     }
@@ -38,8 +39,8 @@ export const sendMedicationReminder = async (userEmail, medication) => {
     const transporter = createTransporter();
 
     const mailOptions = {
-      from: import.meta.env.VITE_EMAIL_FROM || import.meta.env.VITE_EMAIL_USER,
-      to: `${userEmail},sorinbara4u@yahoo.com`,
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+      to: userEmail,
       subject: `💊 Medication Reminder: ${medication.name}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
