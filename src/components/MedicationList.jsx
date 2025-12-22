@@ -182,10 +182,10 @@ function MedicationList() {
                     <span className="value">{medication.frequency}</span>
                   </div>
                 )}
-                {medication.time && (
+                {medication.start_datetime && (
                   <div className="detail-item">
                     <span className="label">Time:</span>
-                    <span className="value">{medication.time}</span>
+                    <span className="value">{new Date(medication.start_datetime).toLocaleString()}</span>
                   </div>
                 )}
                 {medication.notes && (

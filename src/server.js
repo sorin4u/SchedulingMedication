@@ -277,7 +277,7 @@ app.post('/api/medications', authenticateToken, async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO medications (user_id, name, dosage, frequency, time, notes) 
+      `INSERT INTO medications (user_id, name, dosage, frequency, start_datetime, notes) 
        VALUES ($1, $2, $3, $4, $5, $6) 
        RETURNING *`,
       [req.user.id, name, dosage, frequency, time, notes]
@@ -308,7 +308,7 @@ app.put('/api/medications/:id', authenticateToken, async (req, res) => {
 
     const result = await pool.query(
       `UPDATE medications 
-       SET name = $1, dosage = $2, frequency = $3, time = $4, notes = $5, updated_at = CURRENT_TIMESTAMP 
+       SET name = $1, dosage = $2, frequency = $3, start_datetime = $4, notes = $5, updated_at = CURRENT_TIMESTAMP 
        WHERE id = $6 AND user_id = $7 
        RETURNING *`,
       [name, dosage, frequency, time, notes, id, req.user.id]
@@ -420,7 +420,9 @@ const initDatabase = async () => {
         name VARCHAR(100) NOT NULL,
         dosage VARCHAR(50),
         frequency VARCHAR(50),
-        time VARCHAR(50),
+        start_datetime TIMESTAMP,
+        coantiti INTEGER,
+        coantiti_left INTEGER,
         notes TEXT,
         taken_today BOOLEAN DEFAULT FALSE,
         last_taken TIMESTAMP,

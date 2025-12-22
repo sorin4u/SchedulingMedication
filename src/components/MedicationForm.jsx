@@ -8,6 +8,8 @@ function MedicationForm({ medication, onClose, onSuccess }) {
     dosage: '',
     frequency: '',
     time: '',
+    quantity: '',
+    quantity_left: '',
     notes: '',
   });
   const [loading, setLoading] = useState(false);
@@ -19,7 +21,9 @@ function MedicationForm({ medication, onClose, onSuccess }) {
         name: medication.name || '',
         dosage: medication.dosage || '',
         frequency: medication.frequency || '',
-        time: medication.time || '',
+        time: medication.start_datetime ? new Date(medication.start_datetime).toISOString().slice(0, 16) : '',
+        quantity: medication.coantiti || '',
+        quantity_left: medication.coantiti_left || '',
         notes: medication.notes || '',
       });
     }
@@ -46,13 +50,22 @@ function MedicationForm({ medication, onClose, onSuccess }) {
       
       const method = medication ? 'PUT' : 'POST';
 
+      // Transform formData to match server expectations
+      const payload = {
+        name: formData.name,
+        dosage: formData.dosage,
+        frequency: formData.frequency,
+        time: formData.time, // This will be stored as start_datetime in the database
+        notes: formData.notes,
+      };
+
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -110,15 +123,39 @@ function MedicationForm({ medication, onClose, onSuccess }) {
             </div>
 
             <div className="form-group">
-              <label htmlFor="time">Time</label>
+              <label htmlFor="time">Date & Time</label>
               <input
-                type="time"
+                type="datetime-local"
                 id="time"
                 name="time"
                 value={formData.time}
                 onChange={handleChange}
               />
             </div>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="quantity">Quantity</label>
+            <input
+              type="number"
+              id="quantity"
+              name="quantity"
+              value={formData.quantity}
+              onChange={handleChange}
+              placeholder="e.g., 30"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="quantity_left">Quantity Left</label>
+            <input
+              type="number"
+              id="quantity_left"
+              name="quantity_left"
+              value={formData.quantity_left}
+              onChange={handleChange}
+              placeholder="e.g., 15"
+            />
           </div>
 
           <div className="form-group">
