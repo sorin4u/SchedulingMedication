@@ -7,6 +7,8 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import cron from 'node-cron';
+import { sendMedicationReminder, calculateNextDoses, getIntervalMs } from './utils/emailService.js';
 
 const { Pool } = pg;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
@@ -367,6 +369,117 @@ app.patch('/api/medications/:id/taken', authenticateToken, async (req, res) => {
   }
 });
 
+// Get next scheduled doses for a medication
+app.get('/api/medications/:id/schedule', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      'SELECT * FROM medications WHERE id = $1 AND user_id = $2',
+      [id, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Medication not found' });
+    }
+
+    const medication = result.rows[0];
+    if (!medication.start_datetime || !medication.frequency) {
+      return res.json({ nextDoses: [] });
+    }
+
+    const nextDoses = calculateNextDoses(medication.start_datetime, medication.frequency);
+    res.json({ 
+      nextDoses,
+      intervalMs: getIntervalMs(medication.frequency)
+    });
+  } catch (err) {
+    console.error('Get medication schedule error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Send test email notification
+app.post('/api/medications/:id/test-notification', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get medication and user
+    const medicationResult = await pool.query(
+      'SELECT m.*, u.email FROM medications m JOIN users u ON m.user_id = u.id WHERE m.id = $1 AND m.user_id = $2',
+      [id, req.user.id]
+    );
+
+    if (medicationResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Medication not found' });
+    }
+
+    const medication = medicationResult.rows[0];
+    const result = await sendMedicationReminder(medication.email, medication);
+    
+    res.json(result);
+  } catch (err) {
+    console.error('Test notification error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Medication notification scheduler - runs every minute
+const scheduleMedicationNotifications = () => {
+  cron.schedule('* * * * *', async () => {
+    try {
+      const now = new Date();
+      
+      // Get all medications with start_datetime and frequency
+      const result = await pool.query(`
+        SELECT m.*, u.email 
+        FROM medications m 
+        JOIN users u ON m.user_id = u.id 
+        WHERE m.start_datetime IS NOT NULL 
+        AND m.frequency IS NOT NULL
+      `);
+
+      for (const medication of result.rows) {
+        const startTime = new Date(medication.start_datetime);
+        const intervalMs = getIntervalMs(medication.frequency);
+        
+        // Calculate time since start
+        const timeSinceStart = now - startTime;
+        
+        // Check if it's time for a dose (within 1 minute window)
+        if (timeSinceStart > 0) {
+          const timeSinceLastDose = timeSinceStart % intervalMs;
+          
+          // If within 1 minute of scheduled dose time
+          if (timeSinceLastDose < 60000) {
+            // Check if we already sent notification for this dose
+            const lastNotification = medication.last_notification_sent 
+              ? new Date(medication.last_notification_sent) 
+              : new Date(0);
+            
+            const timeSinceLastNotification = now - lastNotification;
+            
+            // Only send if more than 30 minutes since last notification
+            if (timeSinceLastNotification > 30 * 60 * 1000) {
+              console.log(`📧 Sending notification for ${medication.name} to ${medication.email}`);
+              await sendMedicationReminder(medication.email, medication);
+              
+              // Update last notification time
+              await pool.query(
+                'UPDATE medications SET last_notification_sent = CURRENT_TIMESTAMP WHERE id = $1',
+                [medication.id]
+              );
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Notification scheduler error:', err);
+    }
+  });
+  
+  console.log('📅 Medication notification scheduler started');
+};
+
 // Initialize database tables
 const initDatabase = async () => {
   try {
@@ -426,6 +539,7 @@ const initDatabase = async () => {
         notes TEXT,
         taken_today BOOLEAN DEFAULT FALSE,
         last_taken TIMESTAMP,
+        last_notification_sent TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
@@ -445,6 +559,21 @@ const initDatabase = async () => {
         ADD COLUMN last_taken TIMESTAMP
       `);
       console.log('✅ Added taken_today and last_taken columns');
+    }
+
+    // Add last_notification_sent column if it doesn't exist
+    const notificationCheck = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'medications' AND column_name = 'last_notification_sent'
+    `);
+
+    if (notificationCheck.rows.length === 0) {
+      await pool.query(`
+        ALTER TABLE medications 
+        ADD COLUMN last_notification_sent TIMESTAMP
+      `);
+      console.log('✅ Added last_notification_sent column');
     }
 
     console.log('✅ Database tables initialized');
@@ -469,6 +598,9 @@ app.get('/', (req, res) => {
 
 // Initialize database on startup
 initDatabase();
+
+// Start medication notification scheduler
+scheduleMedicationNotifications();
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
