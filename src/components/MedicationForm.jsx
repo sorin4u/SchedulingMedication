@@ -17,11 +17,18 @@ function MedicationForm({ medication, onClose, onSuccess }) {
 
   useEffect(() => {
     if (medication) {
+      // Format datetime for datetime-local input
+      let formattedTime = '';
+      if (medication.start_datetime) {
+        const date = new Date(medication.start_datetime);
+        formattedTime = date.toISOString().slice(0, 16);
+      }
+      
       setFormData({
         name: medication.name || '',
         dosage: medication.dosage || '',
         frequency: medication.frequency || '',
-        time: medication.start_datetime ? new Date(medication.start_datetime).toISOString().slice(0, 16) : '',
+        time: formattedTime,
         quantity: medication.coantiti || '',
         quantity_left: medication.coantiti_left || '',
         notes: medication.notes || '',
