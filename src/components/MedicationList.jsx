@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import MedicationForm from './MedicationForm';
+import NotificationPrompt from './NotificationPrompt';
+import { startMedicationReminders } from '../utils/notifications';
 import './MedicationList.css';
 
 function MedicationList() {
@@ -12,6 +14,13 @@ function MedicationList() {
   useEffect(() => {
     fetchMedications();
   }, []);
+
+  useEffect(() => {
+    if (medications.length > 0) {
+      const intervalId = startMedicationReminders(medications);
+      return () => clearInterval(intervalId);
+    }
+  }, [medications]);
 
   const fetchMedications = async () => {
     try {
@@ -76,12 +85,40 @@ function MedicationList() {
     handleFormClose();
   };
 
+  const handleMarkAsTaken = async (id, taken) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:3000/api/medications/${id}/taken`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ taken }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update medication status');
+      }
+
+      const updatedMedication = await response.json();
+      setMedications(medications.map(med => 
+        med.id === id ? updatedMedication : med
+      ));
+      setError('');
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   if (loading) {
     return <div className="loading">Loading medications...</div>;
   }
 
   return (
     <div className="medication-list-container">
+      <NotificationPrompt />
+      
       <div className="medication-header">
         <h2>My Medications</h2>
         <button onClick={() => setShowForm(true)} className="add-btn">
@@ -107,7 +144,10 @@ function MedicationList() {
       ) : (
         <div className="medication-grid">
           {medications.map((medication) => (
-            <div key={medication.id} className="medication-card">
+            <div 
+              key={medication.id} 
+              className={`medication-card ${medication.taken_today ? 'taken' : ''}`}
+            >
               <div className="medication-card-header">
                 <h3>{medication.name}</h3>
                 <div className="medication-actions">
@@ -153,6 +193,15 @@ function MedicationList() {
                     <span className="value">{medication.notes}</span>
                   </div>
                 )}
+              </div>
+
+              <div className="medication-footer">
+                <button
+                  onClick={() => handleMarkAsTaken(medication.id, !medication.taken_today)}
+                  className={`taken-btn ${medication.taken_today ? 'taken' : ''}`}
+                >
+                  {medication.taken_today ? '✓ Taken Today' : 'Mark as Taken'}
+                </button>
               </div>
             </div>
           ))}

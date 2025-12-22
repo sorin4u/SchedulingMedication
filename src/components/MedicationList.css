@@ -75,6 +75,13 @@
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   transition: all 0.3s;
   border-left: 4px solid #667eea;
+  display: flex;
+  flex-direction: column;
+}
+
+.medication-card.taken {
+  opacity: 0.7;
+  border-left-color: #2ecc71;
 }
 
 @media (hover: hover) {
@@ -188,4 +195,46 @@
   .detail-item .label {
     min-width: auto;
   }
+}
+
+.medication-footer {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.taken-btn {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #667eea;
+  background: white;
+  color: #667eea;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: clamp(0.875rem, 2.5vw, 0.9375rem);
+  min-height: 44px;
+}
+
+.taken-btn.taken {
+  background: #2ecc71;
+  border-color: #2ecc71;
+  color: white;
+}
+
+@media (hover: hover) {
+  .taken-btn:hover:not(.taken) {
+    background: #667eea;
+    color: white;
+  }
+
+  .taken-btn.taken:hover {
+    background: #27ae60;
+    border-color: #27ae60;
+  }
+}
+
+.taken-btn:active {
+  transform: scale(0.98);
 }

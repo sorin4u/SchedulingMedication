@@ -342,6 +342,31 @@ app.delete('/api/medications/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Mark medication as taken
+app.patch('/api/medications/:id/taken', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { taken } = req.body;
+
+    const result = await pool.query(
+      `UPDATE medications 
+       SET taken_today = $1, last_taken = CASE WHEN $1 = true THEN CURRENT_TIMESTAMP ELSE last_taken END, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $2 AND user_id = $3 
+       RETURNING *`,
+      [taken, id, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Medication not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Update medication taken status error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Initialize database tables
 const initDatabase = async () => {
   try {
@@ -397,10 +422,28 @@ const initDatabase = async () => {
         frequency VARCHAR(50),
         time VARCHAR(50),
         notes TEXT,
+        taken_today BOOLEAN DEFAULT FALSE,
+        last_taken TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Add taken_today column if it doesn't exist
+    const takenTodayCheck = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'medications' AND column_name = 'taken_today'
+    `);
+
+    if (takenTodayCheck.rows.length === 0) {
+      await pool.query(`
+        ALTER TABLE medications 
+        ADD COLUMN taken_today BOOLEAN DEFAULT FALSE,
+        ADD COLUMN last_taken TIMESTAMP
+      `);
+      console.log('✅ Added taken_today and last_taken columns');
+    }
 
     console.log('✅ Database tables initialized');
   } catch (err) {
