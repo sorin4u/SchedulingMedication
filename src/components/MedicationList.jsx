@@ -42,6 +42,13 @@ function MedicationList() {
 
       console.log('Response status:', response.status);
 
+      if (response.status === 401 || response.status === 403) {
+        // Token is invalid or expired - logout user
+        localStorage.removeItem('token');
+        window.location.href = '/';
+        return;
+      }
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('API Error:', errorData);
