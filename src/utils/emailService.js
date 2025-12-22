@@ -1,6 +1,10 @@
 /* eslint-env node */
+/* global process */
 import pkg from 'nodemailer';
 const { createTransport } = pkg;
+
+// Note: 'process' is a Node.js global object that provides access to environment variables
+// process.env contains all environment variables from the .env file
 
 // Create transporter for sending emails
 const createTransporter = () => {
