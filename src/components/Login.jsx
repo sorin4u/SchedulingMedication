@@ -36,6 +36,7 @@ function Login({ onLogin }) {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Enable sending cookies
         body: JSON.stringify(body),
       });
 

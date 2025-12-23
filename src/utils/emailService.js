@@ -48,15 +48,24 @@ export const sendMedicationReminder = async (userEmail, medication) => {
       subject: `💊 Medication Reminder: ${medication.name}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h2 style="color: #667eea;">Medication Reminder</h2>
+          <h2 style="color: #667eea;">💊 Medication Reminder</h2>
           <p>This is a reminder to take your medication:</p>
           
           <div style="background: #f7f9fc; padding: 20px; border-radius: 10px; margin: 20px 0;">
             <h3 style="margin-top: 0; color: #333;">${medication.name}</h3>
             ${medication.dosage ? `<p><strong>Dosage:</strong> ${medication.dosage}</p>` : ''}
             ${medication.frequency ? `<p><strong>Frequency:</strong> ${medication.frequency}</p>` : ''}
+            ${medication.quantity_left !== null && medication.quantity_left !== undefined ? `<p><strong>Pills Left:</strong> <span style="color: ${medication.quantity_left <= 5 ? '#e74c3c' : medication.quantity_left <= 10 ? '#f39c12' : '#27ae60'}; font-weight: bold;">${medication.quantity_left}</span>${medication.quantity_left <= 5 ? ' ⚠️ <em style="color: #e74c3c;">Running low!</em>' : ''}</p>` : ''}
             ${medication.notes ? `<p><strong>Notes:</strong> ${medication.notes}</p>` : ''}
           </div>
+          
+          ${medication.quantity_left !== null && medication.quantity_left <= 5 ? `
+          <div style="background: #fff3cd; border-left: 4px solid #f39c12; padding: 15px; margin: 20px 0;">
+            <p style="margin: 0; color: #856404;">
+              <strong>⚠️ Low Stock Alert:</strong> You have only ${medication.quantity_left} pill${medication.quantity_left !== 1 ? 's' : ''} left. Please refill your prescription soon.
+            </p>
+          </div>
+          ` : ''}
           
           <p style="color: #666; font-size: 14px;">
             Please take your medication as prescribed. If you have any questions, 
@@ -78,8 +87,10 @@ It's time to take your medication:
 Medication: ${medication.name}
 ${medication.dosage ? `Dosage: ${medication.dosage}` : ''}
 ${medication.frequency ? `Frequency: ${medication.frequency}` : ''}
+${medication.quantity_left !== null && medication.quantity_left !== undefined ? `Pills Left: ${medication.quantity_left}${medication.quantity_left <= 5 ? ' ⚠️ RUNNING LOW!' : ''}` : ''}
 ${medication.notes ? `Notes: ${medication.notes}` : ''}
 
+${medication.quantity_left !== null && medication.quantity_left <= 5 ? `\n⚠️ LOW STOCK ALERT: You have only ${medication.quantity_left} pill${medication.quantity_left !== 1 ? 's' : ''} left. Please refill your prescription soon.\n` : ''}
 Please take your medication as prescribed.
       `,
     };

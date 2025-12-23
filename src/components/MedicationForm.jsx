@@ -5,6 +5,7 @@ import './MedicationForm.css';
 function MedicationForm({ medication, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
     name: '',
+    email: '',
     dosage: '',
     frequency: '',
     time: '',
@@ -26,6 +27,7 @@ function MedicationForm({ medication, onClose, onSuccess }) {
       
       setFormData({
         name: medication.name || '',
+        email: medication.email || '',
         dosage: medication.dosage || '',
         frequency: medication.frequency || '',
         time: formattedTime,
@@ -60,6 +62,7 @@ function MedicationForm({ medication, onClose, onSuccess }) {
       // Transform formData to match server expectations
       const payload = {
         name: formData.name,
+        email: formData.email,
         dosage: formData.dosage,
         frequency: formData.frequency,
         time: formData.time, // This will be stored as start_datetime in the database
@@ -70,6 +73,7 @@ function MedicationForm({ medication, onClose, onSuccess }) {
 
       const response = await fetch(url, {
         method,
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,

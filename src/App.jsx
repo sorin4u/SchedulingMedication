@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Login from './components/Login'
 import MedicationList from './components/MedicationList'
+import API_URL from './config'
 import './App.css'
 
 function App() {
@@ -14,10 +15,21 @@ function App() {
     setUser(userData)
   }
 
-  const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    setUser(null)
+  const handleLogout = async () => {
+    try {
+      // Call logout endpoint to destroy session
+      await fetch(`${API_URL}/api/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+    } catch (err) {
+      console.error('Logout error:', err)
+    } finally {
+      // Clear local storage and state regardless of API call result
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      setUser(null)
+    }
   }
 
   if (!user) {

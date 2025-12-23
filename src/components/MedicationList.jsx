@@ -35,6 +35,7 @@ function MedicationList() {
       
       console.log('Fetching medications from:', `${API_URL}/api/medications`);
       const response = await fetch(`${API_URL}/api/medications`, {
+        credentials: 'include',
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -76,6 +77,7 @@ function MedicationList() {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/api/medications/${id}`, {
         method: 'DELETE',
+        credentials: 'include',
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -112,6 +114,7 @@ function MedicationList() {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/api/medications/${id}/taken`, {
         method: 'PATCH',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
@@ -215,10 +218,16 @@ function MedicationList() {
                     <span className="value">{medication.quantity}</span>
                   </div>
                 )}
-                {medication.quantity_left && (
+                {medication.quantity_left !== null && medication.quantity_left !== undefined && (
                   <div className="detail-item">
-                    <span className="label">Quantity Left:</span>
-                    <span className="value">{medication.quantity_left}</span>
+                    <span className="label">Pills Left:</span>
+                    <span className="value" style={{ 
+                      color: medication.quantity_left <= 5 ? '#e74c3c' : medication.quantity_left <= 10 ? '#f39c12' : '#27ae60',
+                      fontWeight: 'bold'
+                    }}>
+                      {medication.quantity_left}
+                      {medication.quantity_left <= 5 && ' ⚠️'}
+                    </span>
                   </div>
                 )}
                 {medication.notes && (

@@ -2,6 +2,8 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import session from 'express-session';
+import cookieParser from 'cookie-parser';
 import pg from 'pg';
 import path from 'path';
 import fs from 'fs';
@@ -13,11 +15,33 @@ import { sendMedicationReminder, calculateNextDoses, getIntervalMs } from './uti
 
 const { Pool } = pg;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const SESSION_SECRET = process.env.SESSION_SECRET || 'your-session-secret-change-in-production';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+// CORS configuration to allow credentials
+app.use(cors({
+  origin: [process.env.CLIENT_URL || 'http://localhost:5173', 'http://localhost:5174'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
+app.use(cookieParser());
+
+// Session configuration
+app.use(session({
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production', // true in production with HTTPS
+    httpOnly: true,
+    maxAge: 5 * 60 * 1000, // 5 minutes
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+  }
+}));
 
 // Resolve __dirname in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -149,6 +173,11 @@ app.post('/api/auth/register', async (req, res) => {
       { expiresIn: '24h' }
     );
 
+    // Store user info in session
+    req.session.userId = user.id;
+    req.session.username = user.username;
+    req.session.email = user.email;
+
     res.json({ 
       message: 'User registered successfully',
       token,
@@ -200,6 +229,11 @@ app.post('/api/auth/login', async (req, res) => {
       { expiresIn: '24h' }
     );
 
+    // Store user info in session
+    req.session.userId = user.id;
+    req.session.username = user.username;
+    req.session.email = user.email;
+
     res.json({
       message: 'Login successful',
       token,
@@ -213,6 +247,17 @@ app.post('/api/auth/login', async (req, res) => {
     console.error('Login error:', err);
     res.status(500).json({ error: err.message });
   }
+});
+
+// Logout endpoint
+app.post('/api/auth/logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      return res.status(500).json({ error: 'Failed to logout' });
+    }
+    res.clearCookie('connect.sid'); // Clear session cookie
+    res.json({ message: 'Logout successful' });
+  });
 });
 
 // Get current user (protected route example)
@@ -297,7 +342,7 @@ app.post('/api/medications', authenticateToken, async (req, res) => {
 app.put('/api/medications/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, dosage, frequency, time, notes } = req.body;
+    const { name, email, dosage, frequency, time, notes, quantity, quantity_left } = req.body;
 
     // Check if medication belongs to user
     const checkResult = await pool.query(
@@ -311,10 +356,10 @@ app.put('/api/medications/:id', authenticateToken, async (req, res) => {
 
     const result = await pool.query(
       `UPDATE medications 
-       SET name = $1, dosage = $2, frequency = $3, start_datetime = $4, notes = $5, updated_at = CURRENT_TIMESTAMP 
-       WHERE id = $6 AND user_id = $7 
+       SET name = $1, email = $2, dosage = $3, frequency = $4, start_datetime = $5, notes = $6, quantity = $7, quantity_left = $8, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $9 AND user_id = $10 
        RETURNING *`,
-      [name, dosage, frequency, time, notes, id, req.user.id]
+      [name, email, dosage, frequency, time, notes, quantity, quantity_left, id, req.user.id]
     );
 
     res.json(result.rows[0]);
@@ -351,12 +396,30 @@ app.patch('/api/medications/:id/taken', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { taken } = req.body;
 
+    // Get current medication data
+    const currentMed = await pool.query(
+      'SELECT quantity_left FROM medications WHERE id = $1 AND user_id = $2',
+      [id, req.user.id]
+    );
+
+    if (currentMed.rows.length === 0) {
+      return res.status(404).json({ error: 'Medication not found' });
+    }
+
+    const currentQuantityLeft = currentMed.rows[0].quantity_left || 0;
+    
+    // Decrease quantity_left by 1 when marking as taken, but not below 0
+    const newQuantityLeft = taken && currentQuantityLeft > 0 ? currentQuantityLeft - 1 : currentQuantityLeft;
+
     const result = await pool.query(
       `UPDATE medications 
-       SET taken_today = $1, last_taken = CASE WHEN $1 = true THEN CURRENT_TIMESTAMP ELSE last_taken END, updated_at = CURRENT_TIMESTAMP 
+       SET taken_today = $1, 
+           last_taken = CASE WHEN $1 = true THEN CURRENT_TIMESTAMP ELSE last_taken END, 
+           quantity_left = CASE WHEN $1 = true THEN $4 ELSE quantity_left END,
+           updated_at = CURRENT_TIMESTAMP 
        WHERE id = $2 AND user_id = $3 
        RETURNING *`,
-      [taken, id, req.user.id]
+      [taken, id, req.user.id, newQuantityLeft]
     );
 
     if (result.rows.length === 0) {
@@ -492,6 +555,8 @@ const scheduleMedicationNotifications = () => {
             // Only send if more than 30 minutes since last notification
             if (timeSinceLastNotification > 30 * 60 * 1000) {
               console.log(`📧 Sending notification for ${medication.name} to ${medication.email}`);
+              console.log(`💊 Current pill count: ${medication.quantity_left}`);
+              
               await sendMedicationReminder(medication.email, medication);
               
               // Update last notification time
