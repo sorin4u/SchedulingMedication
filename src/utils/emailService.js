@@ -8,21 +8,21 @@ const { createTransport } = pkg;
 
 // Create transporter for sending emails
 const createTransporter = () => {
+  const port = parseInt(process.env.EMAIL_PORT || '465');
   return createTransport({
     host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.EMAIL_PORT || '587'),
-    secure: false, // true for 465, false for other ports
+    port: port,
+    secure: port === 465, // true for 465 (SSL), false for 587 (STARTTLS)
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASSWORD,
     },
     tls: {
-      rejectUnauthorized: false,
-      ciphers: 'SSLv3'
+      rejectUnauthorized: false
     },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 10000
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 15000
   });
 };
 
