@@ -3,7 +3,6 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import session from 'express-session';
-import connectPgSimple from 'connect-pg-simple';
 import cookieParser from 'cookie-parser';
 import pg from 'pg';
 import path from 'path';
@@ -15,7 +14,6 @@ import cron from 'node-cron';
 import { sendMedicationReminder, calculateNextDoses, getIntervalMs } from './utils/emailService.js';
 
 const { Pool } = pg;
-const PgSession = connectPgSimple(session);
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'your-session-secret-change-in-production';
 const app = express();
@@ -32,20 +30,15 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-// Session configuration with PostgreSQL store
+// Session configuration
 app.use(session({
-  store: new PgSession({
-    pool: pool,
-    tableName: 'session',
-    createTableIfMissing: true
-  }),
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: {
     secure: process.env.NODE_ENV === 'production', // true in production with HTTPS
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    maxAge: 5 * 60 * 1000, // 5 minutes
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
   }
 }));
