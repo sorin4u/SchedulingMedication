@@ -28,7 +28,9 @@ export const sendMedicationReminder = async (userEmail, medication) => {
   try {
     // Skip if email not configured
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-      console.warn('⚠️ Email not configured. Set EMAIL_USER and EMAIL_PASSWORD in .env file');
+      console.error('⚠️ Email not configured. Set EMAIL_USER and EMAIL_PASSWORD in .env file');
+      console.error('EMAIL_USER:', process.env.EMAIL_USER ? 'SET' : 'NOT SET');
+      console.error('EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? 'SET' : 'NOT SET');
       return { success: false, message: 'Email not configured' };
     }
 
