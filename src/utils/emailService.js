@@ -50,14 +50,17 @@ export const sendMedicationReminder = async (userEmail, medication) => {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <h2 style="color: #667eea;">💊 Medication Reminder</h2>
           <p>This is a reminder to take your medication:</p>
-          
-          <div style="background: #f7f9fc; padding: 20px; border-radius: 10px; margin: 20px 0;">
+            <div style="background: #f7f9fc; padding: 20px; border-radius: 10px; margin: 20px 0;">
+            <p style="color: #667eea; font-size: 16px; margin-bottom: 10px;">
+              <strong>🕐 Time:</strong> ${new Date().toLocaleString()}
+            </p>
             <h3 style="margin-top: 0; color: #333;">${medication.name}</h3>
             ${medication.dosage ? `<p><strong>Dosage:</strong> ${medication.dosage}</p>` : ''}
             ${medication.frequency ? `<p><strong>Frequency:</strong> ${medication.frequency}</p>` : ''}
             ${medication.quantity_left !== null && medication.quantity_left !== undefined ? `<p><strong>Pills Left:</strong> <span style="color: ${medication.quantity_left <= 5 ? '#e74c3c' : medication.quantity_left <= 10 ? '#f39c12' : '#27ae60'}; font-weight: bold;">${medication.quantity_left}</span>${medication.quantity_left <= 5 ? ' ⚠️ <em style="color: #e74c3c;">Running low!</em>' : ''}</p>` : ''}
             ${medication.notes ? `<p><strong>Notes:</strong> ${medication.notes}</p>` : ''}
-          </div>
+            </div>
+          
           
           ${medication.quantity_left !== null && medication.quantity_left <= 5 ? `
           <div style="background: #fff3cd; border-left: 4px solid #f39c12; padding: 15px; margin: 20px 0;">
@@ -118,7 +121,13 @@ export const calculateNextDoses = (startDateTime, frequency) => {
   // Extract hours from frequency
   let intervalHours = 24; // Default to once daily
   
-  if (frequency.includes('4 hours') || frequency.includes('4h')) {
+  if (frequency.includes('5 minute') || frequency.includes('5m')) {
+    intervalHours = 5 / 60; // 5 minutes in hours
+  } else if (frequency.includes('1 hour') || frequency.includes('1h')) {
+    intervalHours = 1;
+  } else if (frequency.includes('2 hours') || frequency.includes('2h')) {
+    intervalHours = 2;
+  } else if (frequency.includes('4 hours') || frequency.includes('4h')) {
     intervalHours = 4;
   } else if (frequency.includes('6 hours') || frequency.includes('6h')) {
     intervalHours = 6;
@@ -155,7 +164,13 @@ export const calculateNextDoses = (startDateTime, frequency) => {
  * Get interval in milliseconds from frequency string
  */
 export const getIntervalMs = (frequency) => {
-  if (frequency.includes('4 hours') || frequency.includes('4h')) {
+  if (frequency.includes('5 minute') || frequency.includes('5m')) {
+    return 5 * 60 * 1000; // 5 minutes
+  } else if (frequency.includes('1 hour') || frequency.includes('1h')) {
+    return 1 * 60 * 60 * 1000;
+  } else if (frequency.includes('2 hours') || frequency.includes('2h')) {
+    return 2 * 60 * 60 * 1000;
+  } else if (frequency.includes('4 hours') || frequency.includes('4h')) {
     return 4 * 60 * 60 * 1000;
   } else if (frequency.includes('6 hours') || frequency.includes('6h')) {
     return 6 * 60 * 60 * 1000;

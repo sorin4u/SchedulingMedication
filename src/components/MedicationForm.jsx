@@ -195,6 +195,7 @@ function MedicationForm({ medication, onClose, onSuccess }) {
               onChange={handleChange}
             >
               <option value="">Select frequency</option>
+              <option value="Every 5 minutes">Every 5 minutes</option>
               <option value="Every 24 hours">Once daily</option>
         
               <option value="Every 1 hours">Every 1 hours</option>

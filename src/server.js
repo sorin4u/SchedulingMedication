@@ -629,9 +629,22 @@ const scheduleMedicationNotifications = () => {
             
             const timeSinceLastNotification = now - lastNotification;
             
-            // Only send if we haven't sent a notification in the last 10 minutes
-            // This prevents duplicate sends while allowing the 5-minute detection window
-            if (timeSinceLastNotification > 10 * 60 * 1000) {
+            // Calculate minimum time between notifications based on interval
+            // Use half the interval or 3 minutes, whichever is smaller, to prevent duplicates
+            const minTimeBetweenNotifications = Math.min(intervalMs / 2, 3 * 60 * 1000);
+            
+            console.log(`   Min time between notifications: ${Math.floor(minTimeBetweenNotifications / 60000)} minutes`);
+            
+            // Only send if enough time has passed since last notification
+            if (timeSinceLastNotification > minTimeBetweenNotifications) {
+              // Check if there are pills left
+              const currentQuantityLeft = medication.quantity_left || 0;
+              
+              if (currentQuantityLeft <= 0) {
+                console.log(`⚠️ Skipping ${medication.name} - NO PILLS LEFT! Please refill.`);
+                continue;
+              }
+              
               console.log(`\n📧 ====== SENDING EMAIL REMINDER ======`);
               console.log(`   Medication: ${medication.name}`);
               console.log(`   Frequency: ${medication.frequency}`);
@@ -641,20 +654,30 @@ const scheduleMedicationNotifications = () => {
               console.log(`   Time Since Last: ${Math.floor(timeSinceLastNotification / 60000)} minutes`);
               console.log(`======================================\n`);
               
-              const emailResult = await sendMedicationReminder(medication.email, medication);
+              // Calculate new quantity left (decrease by 1, but not below 0)
+              const newQuantityLeft = currentQuantityLeft - 1;
+              
+              // Update medication object with new quantity for email
+              const medicationForEmail = {
+                ...medication,
+                quantity_left: newQuantityLeft
+              };
+              
+              const emailResult = await sendMedicationReminder(medication.email, medicationForEmail);
               
               if (emailResult.success) {
-                // Update last notification time
+                // Update last notification time and decrease quantity_left
                 await pool.query(
-                  'UPDATE medications SET last_notification_sent = CURRENT_TIMESTAMP WHERE id = $1',
-                  [medication.id]
+                  'UPDATE medications SET last_notification_sent = CURRENT_TIMESTAMP, quantity_left = $2 WHERE id = $1',
+                  [medication.id, newQuantityLeft]
                 );
                 console.log(`✅ Email sent successfully and timestamp updated for ${medication.name}`);
+                console.log(`💊 Pills left updated: ${currentQuantityLeft} → ${newQuantityLeft}`);
               } else {
                 console.error(`❌ Email failed for ${medication.name}:`, emailResult.error);
               }
             } else {
-              console.log(`⏭️ Skipping ${medication.name} - notification sent ${Math.floor(timeSinceLastNotification / 60000)} minutes ago`);
+              console.log(`⏭️ Skipping ${medication.name} - notification sent ${Math.floor(timeSinceLastNotification / 60000)} minutes ago (need ${Math.floor(minTimeBetweenNotifications / 60000)} min gap)`);
             }
           }
         } else {
