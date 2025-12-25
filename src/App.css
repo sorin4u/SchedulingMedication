@@ -67,14 +67,35 @@
   touch-action: manipulation;
 }
 
+.admin-btn {
+  background: rgba(255, 193, 7, 0.9);
+  color: #333;
+  border: 1px solid rgba(255, 193, 7, 1);
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s;
+  font-size: clamp(0.875rem, 2.5vw, 1rem);
+  min-height: 44px;
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+
 @media (hover: hover) {
   .logout-btn:hover {
     background: rgba(255, 255, 255, 0.3);
     border-color: white;
   }
+  
+  .admin-btn:hover {
+    background: rgba(255, 193, 7, 1);
+    transform: translateY(-2px);
+  }
 }
 
-.logout-btn:active {
+.logout-btn:active,
+.admin-btn:active {
   transform: scale(0.98);
 }
 

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Login from './components/Login'
 import MedicationList from './components/MedicationList'
+import AdminDashboard from './components/AdminDashboard'
 import API_URL from './config'
 import './App.css'
 
@@ -10,6 +11,8 @@ function App() {
     const savedUser = localStorage.getItem('user')
     return token && savedUser ? JSON.parse(savedUser) : null
   })
+  
+  const [currentView, setCurrentView] = useState('medications') // 'medications' or 'admin'
 
   const handleLogin = (userData) => {
     setUser(userData)
@@ -29,11 +32,16 @@ function App() {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
       setUser(null)
+      setCurrentView('medications')
     }
   }
 
   if (!user) {
     return <Login onLogin={handleLogin} />
+  }
+  
+  if (currentView === 'admin' && user.is_admin) {
+    return <AdminDashboard onLogout={handleLogout} onBack={() => setCurrentView('medications')} />
   }
 
   return (
@@ -42,6 +50,11 @@ function App() {
         <h1>Medication Scheduling</h1>
         <div className="user-info">
           <span>Welcome, {user.username}!</span>
+          {user.is_admin && (
+            <button onClick={() => setCurrentView('admin')} className="admin-btn">
+              Admin Panel
+            </button>
+          )}
           <button onClick={handleLogout} className="logout-btn">
             Logout
           </button>

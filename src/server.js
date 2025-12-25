@@ -135,6 +135,27 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+// Admin middleware
+const authenticateAdmin = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Invalid or expired token' });
+    }
+    if (!user.is_admin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    req.user = user;
+    next();
+  });
+};
+
 // Register endpoint
 app.post('/api/auth/register', async (req, res) => {
   try {
@@ -160,7 +181,7 @@ app.post('/api/auth/register', async (req, res) => {
 
     // Insert user
     const result = await pool.query(
-      'INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id, username, email, created_at',
+      'INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id, username, email, is_admin, created_at',
       [username, email, hashedPassword]
     );
 
@@ -168,7 +189,7 @@ app.post('/api/auth/register', async (req, res) => {
 
     // Generate token
     const token = jwt.sign(
-      { id: user.id, username: user.username, email: user.email },
+      { id: user.id, username: user.username, email: user.email, is_admin: user.is_admin || false },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -184,7 +205,8 @@ app.post('/api/auth/register', async (req, res) => {
       user: {
         id: user.id,
         username: user.username,
-        email: user.email
+        email: user.email,
+        is_admin: user.is_admin || false
       }
     });
   } catch (err) {
@@ -224,7 +246,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     // Generate token
     const token = jwt.sign(
-      { id: user.id, username: user.username, email: user.email },
+      { id: user.id, username: user.username, email: user.email, is_admin: user.is_admin || false },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -240,7 +262,8 @@ app.post('/api/auth/login', async (req, res) => {
       user: {
         id: user.id,
         username: user.username,
-        email: user.email
+        email: user.email,
+        is_admin: user.is_admin || false
       }
     });
   } catch (err) {
@@ -276,6 +299,110 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Get user error:', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ADMIN ENDPOINTS
+
+app.get('/api/admin/users', authenticateToken, authenticateAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, username, email, is_admin, created_at FROM users ORDER BY created_at DESC'
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+app.get('/api/admin/medications', authenticateToken, authenticateAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT m.*, u.username, u.email as user_email 
+      FROM medications m
+      JOIN users u ON m.user_id = u.id
+      ORDER BY m.created_at DESC
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching all medications:', error);
+    res.status(500).json({ error: 'Failed to fetch medications' });
+  }
+});
+
+app.patch('/api/admin/users/:id/admin', authenticateToken, authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { is_admin } = req.body;
+    
+    const result = await pool.query(
+      'UPDATE users SET is_admin = $1 WHERE id = $2 RETURNING id, username, email, is_admin',
+      [is_admin, id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating admin status:', error);
+    res.status(500).json({ error: 'Failed to update admin status' });
+  }
+});
+
+app.delete('/api/admin/users/:id', authenticateToken, authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Prevent admin from deleting themselves
+    if (parseInt(id) === req.user.id) {
+      return res.status(400).json({ error: 'Cannot delete your own account' });
+    }
+    
+    // Delete user's medications first
+    await pool.query('DELETE FROM medications WHERE user_id = $1', [id]);
+    
+    // Delete user
+    const result = await pool.query(
+      'DELETE FROM users WHERE id = $1 RETURNING id',
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+app.patch('/api/admin/medications/:id/quantity', authenticateToken, authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { quantity_left } = req.body;
+    
+    if (quantity_left === undefined || quantity_left < 0) {
+      return res.status(400).json({ error: 'Invalid quantity' });
+    }
+    
+    const result = await pool.query(
+      'UPDATE medications SET quantity_left = $1 WHERE id = $2 RETURNING *',
+      [quantity_left, id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Medication not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating medication quantity:', error);
+    res.status(500).json({ error: 'Failed to update medication quantity' });
   }
 });
 
@@ -736,6 +863,21 @@ const initDatabase = async () => {
         ADD COLUMN password VARCHAR(255)
       `);
       console.log('✅ Added password column to users table');
+    }
+
+    // Check if is_admin column exists, if not add it
+    const adminCheck = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'users' AND column_name = 'is_admin'
+    `);
+
+    if (adminCheck.rows.length === 0) {
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN is_admin BOOLEAN DEFAULT FALSE
+      `);
+      console.log('✅ Added is_admin column to users table');
     }
 
     // Create medications table
