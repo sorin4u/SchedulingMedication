@@ -1,3 +1,5 @@
+/* eslint-env node */
+/* global process */
 // Quick test to verify email configuration
 import 'dotenv/config';
 import { sendMedicationReminder } from './src/utils/emailService.js';

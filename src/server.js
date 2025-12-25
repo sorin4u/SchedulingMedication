@@ -415,6 +415,7 @@ app.patch('/api/medications/:id/taken', authenticateToken, async (req, res) => {
       `UPDATE medications 
        SET taken_today = $1, 
            last_taken = CASE WHEN $1 = true THEN CURRENT_TIMESTAMP ELSE last_taken END, 
+           last_notification_sent = CASE WHEN $1 = true THEN CURRENT_TIMESTAMP ELSE last_notification_sent END,
            quantity_left = CASE WHEN $1 = true THEN $4 ELSE quantity_left END,
            updated_at = CURRENT_TIMESTAMP 
        WHERE id = $2 AND user_id = $3 
@@ -469,7 +470,7 @@ app.post('/api/medications/:id/test-notification', authenticateToken, async (req
     
     // Get medication and user
     const medicationResult = await pool.query(
-      'SELECT m.*, u.email FROM medications m JOIN users u ON m.user_id = u.id WHERE m.id = $1 AND m.user_id = $2',
+      'SELECT m.*, u.email as user_email FROM medications m JOIN users u ON m.user_id = u.id WHERE m.id = $1 AND m.user_id = $2',
       [id, req.user.id]
     );
 
@@ -478,12 +479,65 @@ app.post('/api/medications/:id/test-notification', authenticateToken, async (req
     }
 
     const medication = medicationResult.rows[0];
+    const emailToUse = medication.email || medication.user_email;
+    
     console.log('🧪 Testing email notification for:', medication.name);
-    const result = await sendMedicationReminder(medication.email, medication);
+    console.log('📧 Sending to:', emailToUse);
+    const result = await sendMedicationReminder(emailToUse, medication);
+    
+    if (result.success) {
+      // Update last notification time for test emails too
+      await pool.query(
+        'UPDATE medications SET last_notification_sent = CURRENT_TIMESTAMP WHERE id = $1',
+        [medication.id]
+      );
+    }
     
     res.json(result);
   } catch (err) {
     console.error('Test notification error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get notification status for a medication
+app.get('/api/medications/:id/notification-status', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query(
+      `SELECT 
+        id, 
+        name, 
+        email,
+        frequency, 
+        start_datetime, 
+        last_notification_sent,
+        quantity_left,
+        EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - last_notification_sent)) / 60 as minutes_since_last_notification
+      FROM medications 
+      WHERE id = $1 AND user_id = $2`,
+      [id, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Medication not found' });
+    }
+
+    const medication = result.rows[0];
+    const intervalMs = getIntervalMs(medication.frequency);
+    const nextDoses = medication.start_datetime && medication.frequency 
+      ? calculateNextDoses(medication.start_datetime, medication.frequency) 
+      : [];
+
+    res.json({
+      ...medication,
+      interval_hours: intervalMs / (60 * 60 * 1000),
+      next_doses: nextDoses,
+      scheduler_active: true
+    });
+  } catch (err) {
+    console.error('Get notification status error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -522,29 +576,52 @@ const scheduleMedicationNotifications = () => {
   cron.schedule('* * * * *', async () => {
     try {
       const now = new Date();
+      console.log(`⏰ Scheduler running at: ${now.toLocaleString()}`);
       
-      // Get all medications with start_datetime and frequency
+      // Get all medications with start_datetime, frequency, and email
       const result = await pool.query(`
-        SELECT m.*, u.email 
+        SELECT m.*, u.email as user_email
         FROM medications m 
         JOIN users u ON m.user_id = u.id 
         WHERE m.start_datetime IS NOT NULL 
         AND m.frequency IS NOT NULL
+        AND m.email IS NOT NULL
       `);
 
+      console.log(`📋 Found ${result.rows.length} medication(s) with schedules`);
+
       for (const medication of result.rows) {
+        console.log(`\n🔍 Checking medication: ${medication.name}`);
+        console.log(`   Email: ${medication.email}`);
+        console.log(`   Frequency: ${medication.frequency}`);
+        console.log(`   Start: ${medication.start_datetime}`);
+        console.log(`   Last notification: ${medication.last_notification_sent || 'Never'}`);
+        
+        // Check if frequency is valid
+        if (!medication.frequency || medication.frequency.trim().length < 3) {
+          console.log(`   ⚠️ WARNING: Invalid frequency! Please edit and select proper frequency like "Every 6 hours"`);
+          continue;
+        }
+        
         const startTime = new Date(medication.start_datetime);
         const intervalMs = getIntervalMs(medication.frequency);
+        
+        console.log(`   Interval: ${intervalMs / (60 * 60 * 1000)} hours`);
         
         // Calculate time since start
         const timeSinceStart = now - startTime;
         
-        // Check if it's time for a dose (within 1 minute window)
+        console.log(`   Time since start: ${Math.floor(timeSinceStart / 60000)} minutes`);
+        
+        // Only process if medication start time has passed
         if (timeSinceStart > 0) {
+          // Calculate time since last scheduled dose
           const timeSinceLastDose = timeSinceStart % intervalMs;
           
-          // If within 1 minute of scheduled dose time
-          if (timeSinceLastDose < 60000) {
+          console.log(`   Time since last dose window: ${Math.floor(timeSinceLastDose / 60000)} minutes`);
+          
+          // If within 5 minutes of scheduled dose time (0-5 minutes) - expanded window for easier testing
+          if (timeSinceLastDose < 5 * 60000) {
             // Check if we already sent notification for this dose
             const lastNotification = medication.last_notification_sent 
               ? new Date(medication.last_notification_sent) 
@@ -552,28 +629,45 @@ const scheduleMedicationNotifications = () => {
             
             const timeSinceLastNotification = now - lastNotification;
             
-            // Only send if more than 30 minutes since last notification
-            if (timeSinceLastNotification > 30 * 60 * 1000) {
-              console.log(`📧 Sending notification for ${medication.name} to ${medication.email}`);
-              console.log(`💊 Current pill count: ${medication.quantity_left}`);
+            // Only send if we haven't sent a notification in the last 10 minutes
+            // This prevents duplicate sends while allowing the 5-minute detection window
+            if (timeSinceLastNotification > 10 * 60 * 1000) {
+              console.log(`\n📧 ====== SENDING EMAIL REMINDER ======`);
+              console.log(`   Medication: ${medication.name}`);
+              console.log(`   Frequency: ${medication.frequency}`);
+              console.log(`   To: ${medication.email}`);
+              console.log(`   Pills Left: ${medication.quantity_left}`);
+              console.log(`   Last Notification: ${medication.last_notification_sent || 'Never'}`);
+              console.log(`   Time Since Last: ${Math.floor(timeSinceLastNotification / 60000)} minutes`);
+              console.log(`======================================\n`);
               
-              await sendMedicationReminder(medication.email, medication);
+              const emailResult = await sendMedicationReminder(medication.email, medication);
               
-              // Update last notification time
-              await pool.query(
-                'UPDATE medications SET last_notification_sent = CURRENT_TIMESTAMP WHERE id = $1',
-                [medication.id]
-              );
+              if (emailResult.success) {
+                // Update last notification time
+                await pool.query(
+                  'UPDATE medications SET last_notification_sent = CURRENT_TIMESTAMP WHERE id = $1',
+                  [medication.id]
+                );
+                console.log(`✅ Email sent successfully and timestamp updated for ${medication.name}`);
+              } else {
+                console.error(`❌ Email failed for ${medication.name}:`, emailResult.error);
+              }
+            } else {
+              console.log(`⏭️ Skipping ${medication.name} - notification sent ${Math.floor(timeSinceLastNotification / 60000)} minutes ago`);
             }
           }
+        } else {
+          console.log(`⏳ Medication ${medication.name} start time is in the future`);
         }
       }
     } catch (err) {
-      console.error('Notification scheduler error:', err);
+      console.error('❌ Notification scheduler error:', err);
     }
   });
   
-  console.log('📅 Medication notification scheduler started');
+  console.log('📅 Medication notification scheduler started (runs every minute)');
+  console.log('📧 Will send email reminders based on medication frequency');
 };
 
 // Initialize database tables

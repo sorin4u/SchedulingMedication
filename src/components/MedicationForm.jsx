@@ -195,16 +195,15 @@ function MedicationForm({ medication, onClose, onSuccess }) {
               onChange={handleChange}
             >
               <option value="">Select frequency</option>
-              <option value="Once daily">Once daily</option>
-              <option value="Twice daily">Twice daily</option>
-              <option value="Three times daily">Three times daily</option>
-              <option value="Four times daily">Four times daily</option>
+              <option value="Every 24 hours">Once daily</option>
+        
+              <option value="Every 1 hours">Every 1 hours</option>
+              <option value="Every 2 hours">Every 2 hours</option>
               <option value="Every 4 hours">Every 4 hours</option>
               <option value="Every 6 hours">Every 6 hours</option>
               <option value="Every 8 hours">Every 8 hours</option>
               <option value="Every 12 hours">Every 12 hours</option>
-              <option value="As needed">As needed</option>
-              <option value="Weekly">Weekly</option>
+              
             </select>
           </div>
 

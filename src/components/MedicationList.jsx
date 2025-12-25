@@ -136,6 +136,33 @@ function MedicationList() {
     }
   };
 
+  const handleTestEmail = async (id) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/api/medications/${id}/test-notification`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send test email');
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        alert('✅ Test email sent successfully! Check your inbox.');
+        fetchMedications(); // Refresh to show updated last notification time
+      } else {
+        alert('❌ Failed to send email: ' + (result.error || 'Unknown error'));
+      }
+    } catch (err) {
+      alert('❌ Error: ' + err.message);
+    }
+  };
+
   if (loading) {
     return <div className="loading">Loading medications...</div>;
   }
@@ -236,6 +263,30 @@ function MedicationList() {
                     <span className="value">{medication.notes}</span>
                   </div>
                 )}
+                {medication.last_taken && (
+                  <div className="detail-item">
+                    <span className="label">Last Taken:</span>
+                    <span className="value" style={{ fontSize: '0.9em', color: '#27ae60', fontWeight: 'bold' }}>
+                      ✓ {new Date(medication.last_taken).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+                {medication.last_notification_sent && (
+                  <div className="detail-item">
+                    <span className="label">Last Reminder:</span>
+                    <span className="value" style={{ fontSize: '0.9em', color: '#666' }}>
+                      {new Date(medication.last_notification_sent).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+                {medication.email && medication.frequency && (
+                  <div className="detail-item">
+                    <span className="label">Email Reminders:</span>
+                    <span className="value" style={{ fontSize: '0.9em', color: '#667eea' }}>
+                      📧 {medication.frequency}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="medication-footer">
@@ -245,6 +296,24 @@ function MedicationList() {
                 >
                   {medication.taken_today ? '✓ Taken Today' : 'Mark as Taken'}
                 </button>
+                {medication.email && medication.frequency && (
+                  <button
+                    onClick={() => handleTestEmail(medication.id)}
+                    className="test-email-btn"
+                    style={{
+                      marginLeft: '10px',
+                      padding: '8px 16px',
+                      backgroundColor: '#667eea',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '5px',
+                      cursor: 'pointer',
+                      fontSize: '0.9em'
+                    }}
+                  >
+                    📧 Test Email
+                  </button>
+                )}
               </div>
             </div>
           ))}
