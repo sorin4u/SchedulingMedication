@@ -940,11 +940,24 @@ const initDatabase = async () => {
 
 // Serve static frontend if built (Render/production)
 if (fs.existsSync(distPath)) {
-  app.use(express.static(distPath));
+  app.use(express.static(distPath, {
+    setHeaders: (res, path) => {
+      if (path.endsWith('.css')) {
+        res.setHeader('Content-Type', 'text/css');
+      } else if (path.endsWith('.js')) {
+        res.setHeader('Content-Type', 'application/javascript');
+      }
+    }
+  }));
 }
 
 // Root route: serve index.html if present, otherwise helpful message
-app.get('/', (req, res) => {
+app.get('*', (req, res, next) => {
+  // Skip API routes
+  if (req.path.startsWith('/api') || req.path.startsWith('/healthz')) {
+    return next();
+  }
+  
   if (fs.existsSync(path.join(distPath, 'index.html'))) {
     res.sendFile(path.join(distPath, 'index.html'));
   } else {
